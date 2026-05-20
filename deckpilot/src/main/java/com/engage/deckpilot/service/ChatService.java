@@ -30,6 +30,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatGeneratedDeckRepository chatGeneratedDeckRepository;
     private final DeckService deckService;
+    private final MockDeckGenerationService mockDeckGenerationService;
 
     @Transactional
     public ChatSessionResponse createSession(ChatSessionCreateRequest request) {
@@ -79,17 +80,37 @@ public class ChatService {
 
         ChatMessage savedUserMessage = chatMessageRepository.save(userMessage);
 
+        boolean shouldGenerateDeck = request.content() != null
+                && request.content().toLowerCase().contains("deck");
+
+        String assistantContent = shouldGenerateDeck
+                ? "Gerei um deck mockado para testar o fluxo. A integração com IA será adicionada em uma próxima etapa."
+                : "Mensagem recebida. A integração com IA será adicionada em uma próxima etapa.";
+
         ChatMessage assistantMessage = ChatMessage.builder()
                 .session(session)
                 .role(ChatMessageRole.ASSISTANT)
-                .content("Mensagem recebida. A integração com IA será adicionada em uma próxima etapa.")
+                .content(assistantContent)
                 .build();
 
         ChatMessage savedAssistantMessage = chatMessageRepository.save(assistantMessage);
 
+        ChatGeneratedDeckResponse generatedDeckResponse = null;
+
+        if (shouldGenerateDeck) {
+            ChatGeneratedDeck generatedDeck = mockDeckGenerationService.generateMockDeck(
+                    session,
+                    savedUserMessage,
+                    savedAssistantMessage
+            );
+
+            generatedDeckResponse = toGeneratedDeckResponse(generatedDeck);
+        }
+
         return new ChatSendMessageResponse(
                 toMessageResponse(savedUserMessage),
-                toMessageResponse(savedAssistantMessage)
+                toMessageResponse(savedAssistantMessage),
+                generatedDeckResponse
         );
     }
 
