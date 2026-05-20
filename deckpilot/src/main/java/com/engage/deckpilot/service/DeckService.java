@@ -8,6 +8,7 @@ import com.engage.deckpilot.dto.deck.DeckCardRequest;
 import com.engage.deckpilot.dto.deck.DeckCardResponse;
 import com.engage.deckpilot.dto.deck.DeckCreateRequest;
 import com.engage.deckpilot.dto.deck.DeckResponse;
+import com.engage.deckpilot.dto.deck.DeckValidationResponse;
 import com.engage.deckpilot.repository.CardRepository;
 import com.engage.deckpilot.repository.DeckRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,9 +27,15 @@ public class DeckService {
 
     private final DeckRepository deckRepository;
     private final CardRepository cardRepository;
+    private final DeckValidationService deckValidationService;
 
     @Transactional
     public DeckResponse createDeck(DeckCreateRequest request) {
+        DeckValidationResponse validation = deckValidationService.validate(request);
+
+        if (!validation.valid()) {
+            throw new IllegalArgumentException("Invalid deck: " + String.join("; ", validation.errors()));
+        }
         Deck deck = Deck.builder()
                 .name(request.name())
                 .archetype(request.archetype())

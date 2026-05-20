@@ -2,6 +2,8 @@ package com.engage.deckpilot.controller;
 
 import com.engage.deckpilot.dto.deck.DeckCreateRequest;
 import com.engage.deckpilot.dto.deck.DeckResponse;
+import com.engage.deckpilot.dto.deck.DeckValidationResponse;
+import com.engage.deckpilot.service.DeckValidationService;
 import com.engage.deckpilot.service.DeckService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class DeckController {
 
     private final DeckService deckService;
+    private final DeckValidationService deckValidationService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -33,5 +36,10 @@ public class DeckController {
     @GetMapping("/{id}")
     public DeckResponse findById(@PathVariable Long id) {
         return deckService.findById(id);
+    }
+
+    @PostMapping("/validate")
+    public DeckValidationResponse validateDeck(@RequestBody @Valid DeckCreateRequest request) {
+        return deckValidationService.validate(request);
     }
 }
