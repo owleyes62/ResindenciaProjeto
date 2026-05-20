@@ -4,6 +4,7 @@ import com.engage.deckpilot.domain.deck.Deck;
 import com.engage.deckpilot.domain.deck.DeckCard;
 import com.engage.deckpilot.domain.deck.DeckDiagnosis;
 import com.engage.deckpilot.domain.deck.DeckSection;
+import com.engage.deckpilot.dto.doctor.DeckDiagnosisDetailResponse;
 import com.engage.deckpilot.dto.doctor.DeckDiagnosisHistoryResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorCheckResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorResponse;
@@ -97,6 +98,31 @@ public class DeckDoctorService {
                 diagnosis.getId(),
                 diagnosis.getDeck().getId(),
                 diagnosis.getSummary(),
+                diagnosis.getSource(),
+                diagnosis.getCreatedAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DeckDiagnosisDetailResponse findDiagnosisById(Long diagnosisId) {
+        DeckDiagnosis diagnosis = deckDiagnosisRepository.findById(diagnosisId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Diagnosis not found with id: " + diagnosisId
+                ));
+
+        return toDiagnosisDetailResponse(diagnosis);
+    }
+
+    private DeckDiagnosisDetailResponse toDiagnosisDetailResponse(DeckDiagnosis diagnosis) {
+        return new DeckDiagnosisDetailResponse(
+                diagnosis.getId(),
+                diagnosis.getDeck().getId(),
+                diagnosis.getDeck().getName(),
+                diagnosis.getSummary(),
+                diagnosis.getStrengths(),
+                diagnosis.getRisks(),
+                diagnosis.getSuggestions(),
+                diagnosis.getChecksJson(),
                 diagnosis.getSource(),
                 diagnosis.getCreatedAt()
         );

@@ -1,5 +1,6 @@
 package com.engage.deckpilot.controller;
 
+import com.engage.deckpilot.dto.doctor.DeckDiagnosisDetailResponse;
 import com.engage.deckpilot.dto.doctor.DeckDiagnosisHistoryResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorResponse;
 import com.engage.deckpilot.service.DeckDoctorService;
@@ -34,5 +35,14 @@ public class DeckDoctorController {
     @GetMapping("/decks/{deckId}/diagnoses")
     public List<DeckDiagnosisHistoryResponse> listDiagnoses(@PathVariable Long deckId) {
         return deckDoctorService.listDiagnoses(deckId);
+    }
+
+    @Operation(
+            summary = "Buscar diagnóstico por ID",
+            description = "Retorna um diagnóstico salvo pelo seu identificador"
+    )
+    @GetMapping("/diagnoses/{diagnosisId}")
+    public DeckDiagnosisDetailResponse findDiagnosisById(@PathVariable Long diagnosisId) {
+        return deckDoctorService.findDiagnosisById(diagnosisId);
     }
 }
