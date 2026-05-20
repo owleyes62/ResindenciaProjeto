@@ -1,0 +1,111 @@
+# DTO e Domain no DeckPilot (Spring Boot)
+
+## Visão geral
+
+Na reconstrução do DeckPilot em Spring Boot, as pastas `dto` e `domain` possuem responsabilidades diferentes e complementares.
+
+Essa separação ajuda a manter o projeto mais organizado, mais legível e mais fácil de evoluir.
+
+---
+
+## Pasta `domain`
+
+A pasta `domain` representa o **núcleo de dados e regras da aplicação**.
+
+Ela contém as entidades que modelam o negócio do sistema, normalmente mapeadas para o banco de dados com JPA/Hibernate.
+
+### Exemplos no DeckPilot
+
+Dentro de `domain`, teremos classes como:
+
+- `Card`
+- `Deck`
+- `DeckCard`
+- `ChatSession`
+- `ChatMessage`
+- `DeckDiagnosis`
+
+### Função principal
+
+A função da pasta `domain` é representar os objetos centrais da aplicação.
+
+Essas classes:
+
+- descrevem a estrutura dos dados persistidos;
+- representam os relacionamentos entre entidades;
+- servem como base para a lógica de negócio.
+
+### Exemplo prático
+
+A entidade `Card`, por exemplo, representa uma carta salva no banco de dados.  
+Ela possui campos como nome, atributo, ataque, defesa, descrição e URLs da imagem.
+
+Ou seja, `domain` está ligado ao **modelo interno da aplicação**.
+
+---
+
+## Pasta `dto`
+
+A pasta `dto` contém os **Data Transfer Objects**, ou seja, objetos usados para transportar dados entre camadas da aplicação.
+
+Esses objetos não representam necessariamente a tabela do banco. Eles existem para definir o formato dos dados que entram e saem da aplicação.
+
+### Exemplos no DeckPilot
+
+Dentro de `dto`, teremos classes como:
+
+- `CardResponse`
+- `CardImportResultResponse`
+- `ChatMessageRequest`
+- `ChatMessageResponse`
+- `DeckResponse`
+- `DoctorAnalysisResponse`
+
+### Função principal
+
+A função da pasta `dto` é controlar a forma como os dados são expostos ou recebidos pela API.
+
+Essas classes ajudam a:
+
+- evitar expor diretamente as entidades do banco;
+- padronizar requests e responses;
+- separar o modelo interno do modelo público da API;
+- facilitar manutenção e evolução da interface.
+
+### Exemplo prático
+
+A entidade `Card` pode ter muitos campos internos, mas um `CardResponse` pode retornar apenas os dados necessários para o front-end.
+
+Da mesma forma, um endpoint de importação pode devolver um `CardImportResultResponse` com os campos:
+
+- `created`
+- `updated`
+- `skipped`
+- `total`
+
+---
+
+## Diferença entre `domain` e `dto`
+
+### `domain`
+- representa a estrutura central da aplicação;
+- normalmente está ligada ao banco;
+- contém entidades e relacionamentos;
+- é usada na regra de negócio e persistência.
+
+### `dto`
+- representa a troca de dados entre camadas;
+- define o formato de entrada e saída da API;
+- não precisa refletir exatamente a estrutura do banco;
+- ajuda a proteger e organizar a interface pública do sistema.
+
+---
+
+## Resumo
+
+No DeckPilot:
+
+- `domain` representa o **modelo interno e persistido** da aplicação;
+- `dto` representa o **modelo de transporte de dados** entre backend e frontend.
+
+Essa separação é uma boa prática de arquitetura e ajuda a manter o projeto mais limpo e escalável.
