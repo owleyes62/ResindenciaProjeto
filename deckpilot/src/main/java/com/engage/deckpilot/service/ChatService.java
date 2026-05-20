@@ -1,0 +1,115 @@
+package com.engage.deckpilot.service;
+
+import com.engage.deckpilot.domain.chat.ChatMessage;
+import com.engage.deckpilot.domain.chat.ChatMessageRole;
+import com.engage.deckpilot.domain.chat.ChatSession;
+import com.engage.deckpilot.dto.chat.ChatMessageCreateRequest;
+import com.engage.deckpilot.dto.chat.ChatMessageResponse;
+import com.engage.deckpilot.dto.chat.ChatSendMessageResponse;
+import com.engage.deckpilot.dto.chat.ChatSessionCreateRequest;
+import com.engage.deckpilot.dto.chat.ChatSessionResponse;
+import com.engage.deckpilot.repository.ChatMessageRepository;
+import com.engage.deckpilot.repository.ChatSessionRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ChatService {
+
+    private final ChatSessionRepository chatSessionRepository;
+    private final ChatMessageRepository chatMessageRepository;
+
+    @Transactional
+    public ChatSessionResponse createSession(ChatSessionCreateRequest request) {
+        ChatSession session = ChatSession.builder()
+                .title(request.title())
+                .build();
+
+        ChatSession savedSession = chatSessionRepository.save(session);
+
+        return toSessionResponse(savedSession);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ChatSessionResponse> listSessions(int page, int size) {
+        return chatSessionRepository.findAll(PageRequest.of(page, size))
+                .map(this::toSessionResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatSessionResponse findSessionById(Long sessionId) {
+        ChatSession session = findSessionEntity(sessionId);
+
+        return toSessionResponse(session);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatMessageResponse> listMessages(Long sessionId) {
+        if (!chatSessionRepository.existsById(sessionId)) {
+            throw new EntityNotFoundException("Chat session not found with id: " + sessionId);
+        }
+
+        return chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
+                .stream()
+                .map(this::toMessageResponse)
+                .toList();
+    }
+
+    @Transactional
+    public ChatSendMessageResponse sendMessage(Long sessionId, ChatMessageCreateRequest request) {
+        ChatSession session = findSessionEntity(sessionId);
+
+        ChatMessage userMessage = ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content(request.content())
+                .build();
+
+        ChatMessage savedUserMessage = chatMessageRepository.save(userMessage);
+
+        ChatMessage assistantMessage = ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("Mensagem recebida. A integração com IA será adicionada em uma próxima etapa.")
+                .build();
+
+        ChatMessage savedAssistantMessage = chatMessageRepository.save(assistantMessage);
+
+        return new ChatSendMessageResponse(
+                toMessageResponse(savedUserMessage),
+                toMessageResponse(savedAssistantMessage)
+        );
+    }
+
+    private ChatSession findSessionEntity(Long sessionId) {
+        return chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Chat session not found with id: " + sessionId
+                ));
+    }
+
+    private ChatSessionResponse toSessionResponse(ChatSession session) {
+        return new ChatSessionResponse(
+                session.getId(),
+                session.getTitle(),
+                session.getCreatedAt(),
+                session.getUpdatedAt()
+        );
+    }
+
+    private ChatMessageResponse toMessageResponse(ChatMessage message) {
+        return new ChatMessageResponse(
+                message.getId(),
+                message.getRole().name(),
+                message.getContent(),
+                message.getCreatedAt()
+        );
+    }
+}
