@@ -92,7 +92,7 @@ public class DeckService {
         }
     }
 
-    private DeckResponse toResponse(Deck deck) {
+    public DeckResponse toResponse(Deck deck) {
         List<DeckCardResponse> mainDeck = new ArrayList<>();
         List<DeckCardResponse> extraDeck = new ArrayList<>();
         List<DeckCardResponse> sideDeck = new ArrayList<>();

@@ -1,5 +1,6 @@
 package com.engage.deckpilot.controller;
 
+import com.engage.deckpilot.dto.chat.ChatGeneratedDeckResponse;
 import com.engage.deckpilot.dto.chat.ChatMessageCreateRequest;
 import com.engage.deckpilot.dto.chat.ChatMessageResponse;
 import com.engage.deckpilot.dto.chat.ChatSendMessageResponse;
@@ -53,5 +54,20 @@ public class ChatController {
             @RequestBody @Valid ChatMessageCreateRequest request
     ) {
         return chatService.sendMessage(sessionId, request);
+    }
+
+    @GetMapping("/sessions/{sessionId}/generated-decks")
+    public List<ChatGeneratedDeckResponse> listGeneratedDecks(
+            @PathVariable Long sessionId
+    ) {
+        return chatService.listGeneratedDecks(sessionId);
+    }
+
+    @GetMapping("/sessions/{sessionId}/generated-decks/{generationIndex}")
+    public ChatGeneratedDeckResponse findGeneratedDeckByIndex(
+            @PathVariable Long sessionId,
+            @PathVariable Integer generationIndex
+    ) {
+        return chatService.findGeneratedDeckByIndex(sessionId, generationIndex);
     }
 }

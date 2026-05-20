@@ -1,13 +1,16 @@
 package com.engage.deckpilot.service;
 
+import com.engage.deckpilot.domain.chat.ChatGeneratedDeck;
 import com.engage.deckpilot.domain.chat.ChatMessage;
 import com.engage.deckpilot.domain.chat.ChatMessageRole;
 import com.engage.deckpilot.domain.chat.ChatSession;
+import com.engage.deckpilot.dto.chat.ChatGeneratedDeckResponse;
 import com.engage.deckpilot.dto.chat.ChatMessageCreateRequest;
 import com.engage.deckpilot.dto.chat.ChatMessageResponse;
 import com.engage.deckpilot.dto.chat.ChatSendMessageResponse;
 import com.engage.deckpilot.dto.chat.ChatSessionCreateRequest;
 import com.engage.deckpilot.dto.chat.ChatSessionResponse;
+import com.engage.deckpilot.repository.ChatGeneratedDeckRepository;
 import com.engage.deckpilot.repository.ChatMessageRepository;
 import com.engage.deckpilot.repository.ChatSessionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,6 +28,8 @@ public class ChatService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatGeneratedDeckRepository chatGeneratedDeckRepository;
+    private final DeckService deckService;
 
     @Transactional
     public ChatSessionResponse createSession(ChatSessionCreateRequest request) {
@@ -85,6 +90,57 @@ public class ChatService {
         return new ChatSendMessageResponse(
                 toMessageResponse(savedUserMessage),
                 toMessageResponse(savedAssistantMessage)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatGeneratedDeckResponse> listGeneratedDecks(Long sessionId) {
+        if (!chatSessionRepository.existsById(sessionId)) {
+            throw new EntityNotFoundException("Chat session not found with id: " + sessionId);
+        }
+
+        return chatGeneratedDeckRepository.findBySessionIdOrderByGenerationIndexAsc(sessionId)
+                .stream()
+                .map(this::toGeneratedDeckResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ChatGeneratedDeckResponse findGeneratedDeckByIndex(
+            Long sessionId,
+            Integer generationIndex
+    ) {
+        if (!chatSessionRepository.existsById(sessionId)) {
+            throw new EntityNotFoundException("Chat session not found with id: " + sessionId);
+        }
+
+        ChatGeneratedDeck generatedDeck = chatGeneratedDeckRepository
+                .findBySessionIdAndGenerationIndex(sessionId, generationIndex)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Generated deck not found for session " + sessionId +
+                                " and generation index " + generationIndex
+                ));
+
+        return toGeneratedDeckResponse(generatedDeck);
+    }
+
+    private ChatGeneratedDeckResponse toGeneratedDeckResponse(ChatGeneratedDeck generatedDeck) {
+        Long userMessageId = generatedDeck.getUserMessage() == null
+                ? null
+                : generatedDeck.getUserMessage().getId();
+
+        Long assistantMessageId = generatedDeck.getAssistantMessage() == null
+                ? null
+                : generatedDeck.getAssistantMessage().getId();
+
+        return new ChatGeneratedDeckResponse(
+                generatedDeck.getId(),
+                generatedDeck.getSession().getId(),
+                generatedDeck.getGenerationIndex(),
+                deckService.toResponse(generatedDeck.getDeck()),
+                userMessageId,
+                assistantMessageId,
+                generatedDeck.getCreatedAt()
         );
     }
 
