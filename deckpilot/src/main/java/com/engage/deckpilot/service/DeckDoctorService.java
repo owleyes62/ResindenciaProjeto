@@ -4,6 +4,7 @@ import com.engage.deckpilot.domain.deck.Deck;
 import com.engage.deckpilot.domain.deck.DeckCard;
 import com.engage.deckpilot.domain.deck.DeckDiagnosis;
 import com.engage.deckpilot.domain.deck.DeckSection;
+import com.engage.deckpilot.dto.doctor.DeckDiagnosisHistoryResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorCheckResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorResponse;
 import com.engage.deckpilot.repository.DeckDiagnosisRepository;
@@ -76,6 +77,28 @@ public class DeckDoctorService {
                 checks,
                 savedDiagnosis.getSource(),
                 savedDiagnosis.getCreatedAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeckDiagnosisHistoryResponse> listDiagnoses(Long deckId) {
+        if (!deckRepository.existsById(deckId)) {
+            throw new EntityNotFoundException("Deck not found with id: " + deckId);
+        }
+
+        return deckDiagnosisRepository.findByDeckIdOrderByCreatedAtDesc(deckId)
+                .stream()
+                .map(this::toDiagnosisHistoryResponse)
+                .toList();
+    }
+
+    private DeckDiagnosisHistoryResponse toDiagnosisHistoryResponse(DeckDiagnosis diagnosis) {
+        return new DeckDiagnosisHistoryResponse(
+                diagnosis.getId(),
+                diagnosis.getDeck().getId(),
+                diagnosis.getSummary(),
+                diagnosis.getSource(),
+                diagnosis.getCreatedAt()
         );
     }
 
