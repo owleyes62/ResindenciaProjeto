@@ -2,7 +2,9 @@ package com.engage.deckpilot.controller;
 
 import com.engage.deckpilot.dto.doctor.DeckDiagnosisDetailResponse;
 import com.engage.deckpilot.dto.doctor.DeckDiagnosisHistoryResponse;
+import com.engage.deckpilot.dto.doctor.DeckDoctorAIResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorResponse;
+import com.engage.deckpilot.service.DeckDoctorAIService;
 import com.engage.deckpilot.service.DeckDoctorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +20,7 @@ import java.util.List;
 public class DeckDoctorController {
 
     private final DeckDoctorService deckDoctorService;
+    private final DeckDoctorAIService deckDoctorAIService;
 
     @Operation(
             summary = "Analisar deck",
@@ -44,5 +47,14 @@ public class DeckDoctorController {
     @GetMapping("/diagnoses/{diagnosisId}")
     public DeckDiagnosisDetailResponse findDiagnosisById(@PathVariable Long diagnosisId) {
         return deckDoctorService.findDiagnosisById(diagnosisId);
+    }
+
+    @Operation(
+            summary = "Analisar deck com IA",
+            description = "Executa uma análise simulada de IA e salva o diagnóstico com source = ai"
+    )
+    @GetMapping("/decks/{deckId}/ai")
+    public DeckDoctorAIResponse analyzeDeckWithAI(@PathVariable Long deckId) {
+        return deckDoctorAIService.analyzeDeckWithAI(deckId);
     }
 }
