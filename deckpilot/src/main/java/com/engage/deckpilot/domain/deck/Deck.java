@@ -51,6 +51,10 @@ public class Deck {
     @Builder.Default
     private List<DeckCard> cards = new ArrayList<>();
 
+    @OneToMany(mappedBy = "deck", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<DeckDiagnosis> diagnoses = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();

@@ -2,10 +2,14 @@ package com.engage.deckpilot.service;
 
 import com.engage.deckpilot.domain.deck.Deck;
 import com.engage.deckpilot.domain.deck.DeckCard;
+import com.engage.deckpilot.domain.deck.DeckDiagnosis;
 import com.engage.deckpilot.domain.deck.DeckSection;
 import com.engage.deckpilot.dto.doctor.DeckDoctorCheckResponse;
 import com.engage.deckpilot.dto.doctor.DeckDoctorResponse;
+import com.engage.deckpilot.repository.DeckDiagnosisRepository;
 import com.engage.deckpilot.repository.DeckRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,8 +23,10 @@ import java.util.List;
 public class DeckDoctorService {
 
     private final DeckRepository deckRepository;
+    private final DeckDiagnosisRepository deckDiagnosisRepository;
+    private final ObjectMapper objectMapper;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public DeckDoctorResponse analyzeDeck(Long deckId) {
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new EntityNotFoundException("Deck not found with id: " + deckId));
@@ -42,15 +48,43 @@ public class DeckDoctorService {
 
         String summary = buildSummary(deck, mainCount, extraCount, sideCount, risks);
 
+        String strengthsJson = toJson(strengths);
+        String risksJson = toJson(risks);
+        String suggestionsJson = toJson(suggestions);
+        String checksJson = toJson(checks);
+
+        DeckDiagnosis diagnosis = DeckDiagnosis.builder()
+                .deck(deck)
+                .summary(summary)
+                .strengths(strengthsJson)
+                .risks(risksJson)
+                .suggestions(suggestionsJson)
+                .checksJson(checksJson)
+                .source("local")
+                .build();
+
+        DeckDiagnosis savedDiagnosis = deckDiagnosisRepository.save(diagnosis);
+
         return new DeckDoctorResponse(
+                savedDiagnosis.getId(),
                 deck.getId(),
                 deck.getName(),
                 summary,
                 strengths,
                 risks,
                 suggestions,
-                checks
+                checks,
+                savedDiagnosis.getSource(),
+                savedDiagnosis.getCreatedAt()
         );
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize diagnosis data", e);
+        }
     }
 
     private int countBySection(Deck deck, DeckSection section) {
