@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +44,10 @@ public class CardNameResolver {
                     .getContent();
         }
 
+        if (candidates.isEmpty()) {
+            candidates = searchByKeywords(cleanedName);
+        }
+
         return candidates.stream()
                 .min(Comparator.comparingInt(card -> distance(
                         normalize(card.getName()),
@@ -51,6 +56,31 @@ public class CardNameResolver {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "AI generated a card that was not found in database: " + rawName
                 ));
+    }
+
+    private List<Card> searchByKeywords(String name) {
+        List<String> keywords = Arrays.stream(name.split("\\s+"))
+                .filter(word -> word.length() >= 4)
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .toList();
+
+        java.util.LinkedHashMap<Long, Card> aggregated = new java.util.LinkedHashMap<>();
+
+        for (String keyword : keywords) {
+            List<Card> matches = cardRepository
+                    .findByNameContainingIgnoreCase(keyword, PageRequest.of(0, 20))
+                    .getContent();
+
+            for (Card match : matches) {
+                aggregated.putIfAbsent(match.getId(), match);
+            }
+
+            if (aggregated.size() >= 30) {
+                break;
+            }
+        }
+
+        return new java.util.ArrayList<>(aggregated.values());
     }
 
     private String cleanCardName(String rawName) {

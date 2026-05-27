@@ -3,14 +3,41 @@ Pedido do usuário:
 
 Crie um deck de Yu-Gi-Oh! TCG seguindo rigidamente estas regras:
 
-- Main Deck com no mínimo 40 e no máximo 60 cartas.
-- Preferencialmente Main Deck com exatamente 40 cartas.
-- Extra Deck com no máximo 15 cartas.
-- Side Deck com no máximo 15 cartas.
-- Nenhuma carta pode ter mais de 3 cópias.
-- Use nomes oficiais em inglês das cartas.
+REGRAS DE TAMANHO (obrigatórias, sem exceção):
+- Main Deck DEVE ter no MÍNIMO 40 cartas no total. Não pode ser 39, nem 38, nem 35.
+- O ideal é exatamente 40 cartas no Main Deck.
+- Pode ir até 60 cartas no Main Deck se necessário.
+- Extra Deck DEVE ter no máximo 15 cartas.
+- Side Deck DEVE ter no máximo 15 cartas.
+- Nenhuma carta pode ter mais de 3 cópias SOMANDO Main + Extra + Side.
+
+COMO ATINGIR 40 CARTAS NO MAIN DECK:
+- Cada item da lista mainDeck tem um campo "copies".
+- A SOMA de todos os "copies" no mainDeck deve ser >= 40.
+- Use 2 ou 3 cópias da maioria das cartas. Cartas com 1 cópia devem ser exceção.
+- PADRÕES VÁLIDOS:
+  * 14 cartas únicas × 3 cópias = 42 cartas ✓
+  * 16 cartas únicas × 2-3 cópias = 40-48 cartas ✓
+  * 20 cartas únicas × 2-3 cópias = 40-60 cartas ✓
+- PADRÕES PROIBIDOS:
+  * 13 cartas únicas × 3 cópias = 39 cartas ✗ (FALTA 1, ADICIONE outra carta única)
+  * 10 cartas únicas com copies=1 cada = 10 cartas ✗ (faltam 30)
+  * Lista com 30-39 cópias totais é INVÁLIDA
+
+REGRA CRUZADA ENTRE SEÇÕES:
+- Se uma carta aparece em mainDeck e extraDeck (ou sideDeck), a SOMA total de copies dela em todas as seções não pode passar de 3.
+- Exemplo PROIBIDO: "Blue-Eyes White Dragon" com copies=3 no mainDeck E copies=1 no sideDeck (total 4 ✗).
+
+OUTRAS REGRAS:
+- Use nomes oficiais em inglês das cartas. Use APENAS cartas reais e conhecidas, não invente nomes.
 - Retorne somente JSON válido.
 - Não use markdown.
 - Não escreva nada fora do JSON.
+
+ANTES DE RESPONDER, FAÇA A CONTA NA MÃO:
+1. Some todos os "copies" do mainDeck.
+2. Se o total for menor que 40, ADICIONE mais uma carta única à lista (não apenas aumente as cópias, ADICIONE NOVA CARTA).
+3. Confirme que mainDeckCount no JSON é igual à soma real e é >= 40.
+4. Verifique se nenhuma carta soma mais de 3 cópias entre Main + Extra + Side.
 
 Se o pedido for incompleto, escolha uma lista inicial simples e consistente.

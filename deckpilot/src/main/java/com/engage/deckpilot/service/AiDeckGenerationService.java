@@ -37,20 +37,15 @@ public class AiDeckGenerationService {
     private final DeckRepository deckRepository;
     private final ChatGeneratedDeckRepository chatGeneratedDeckRepository;
 
+    private static final int MAX_GENERATION_ATTEMPTS = 3;
+
     @Transactional
     public GeneratedDeckResult generateDeckFromMessage(
             ChatSession session,
             ChatMessage userMessage,
             ChatMessage assistantMessage
     ) {
-        String rawJson = groqLlmClient.chatForDeckGeneration(
-                deckGenerationPromptBuilder.systemPrompt(),
-                deckGenerationPromptBuilder.userPrompt(userMessage.getContent())
-        );
-
-        AiDeckGenerationResponse aiDeck = parseAiResponse(rawJson);
-
-        validateAiDeckStructure(aiDeck);
+        AiDeckGenerationResponse aiDeck = generateValidatedDeck(userMessage.getContent());
 
         Deck deck = Deck.builder()
                 .name(aiDeck.name())
@@ -87,6 +82,159 @@ public class AiDeckGenerationService {
         }
 
         return new GeneratedDeckResult(savedGeneratedDeck, assistantContent);
+    }
+
+    private AiDeckGenerationResponse generateValidatedDeck(String userContent) {
+        String systemPrompt = deckGenerationPromptBuilder.systemPrompt();
+        String baseUserPrompt = deckGenerationPromptBuilder.userPrompt(userContent);
+
+        String currentUserPrompt = baseUserPrompt;
+        IllegalArgumentException lastError = null;
+
+        for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+            String rawJson = groqLlmClient.chatForDeckGeneration(systemPrompt, currentUserPrompt);
+            AiDeckGenerationResponse aiDeck = parseAiResponse(rawJson);
+            aiDeck = capCrossSectionCopies(aiDeck);
+            aiDeck = padMainDeckIfUndersized(aiDeck);
+
+            try {
+                validateAiDeckStructure(aiDeck);
+                return aiDeck;
+            } catch (IllegalArgumentException e) {
+                lastError = e;
+                currentUserPrompt = baseUserPrompt
+                        + "\n\nSua tentativa anterior falhou com este erro:\n"
+                        + e.getMessage()
+                        + "\n\nCorrija o problema e devolva um JSON válido respeitando todas as regras de tamanho e cópias.";
+            }
+        }
+
+        throw lastError != null
+                ? lastError
+                : new IllegalStateException("AI deck generation failed without a specific error.");
+    }
+
+    private AiDeckGenerationResponse capCrossSectionCopies(AiDeckGenerationResponse aiDeck) {
+        Map<String, Integer> totals = new HashMap<>();
+        addCopiesToMap(aiDeck.mainDeck(), totals);
+        addCopiesToMap(aiDeck.extraDeck(), totals);
+        addCopiesToMap(aiDeck.sideDeck(), totals);
+
+        boolean needsTrim = totals.values().stream().anyMatch(value -> value > 3);
+
+        if (!needsTrim) {
+            return aiDeck;
+        }
+
+        Map<String, Integer> kept = new HashMap<>();
+
+        List<AiDeckCardResponse> mainTrimmed = trimSection(aiDeck.mainDeck(), kept);
+        List<AiDeckCardResponse> extraTrimmed = trimSection(aiDeck.extraDeck(), kept);
+        List<AiDeckCardResponse> sideTrimmed = trimSection(aiDeck.sideDeck(), kept);
+
+        return new AiDeckGenerationResponse(
+                aiDeck.name(),
+                aiDeck.archetype(),
+                aiDeck.playStyle(),
+                aiDeck.format(),
+                aiDeck.mainDeckCount(),
+                aiDeck.extraDeckCount(),
+                aiDeck.sideDeckCount(),
+                aiDeck.winCondition(),
+                aiDeck.howToPilot(),
+                mainTrimmed,
+                extraTrimmed,
+                sideTrimmed,
+                aiDeck.assistantMessage()
+        );
+    }
+
+    private List<AiDeckCardResponse> trimSection(
+            List<AiDeckCardResponse> section,
+            Map<String, Integer> kept
+    ) {
+        if (section == null || section.isEmpty()) {
+            return section;
+        }
+
+        List<AiDeckCardResponse> result = new ArrayList<>();
+
+        for (AiDeckCardResponse card : section) {
+            if (card == null || card.cardName() == null) {
+                continue;
+            }
+
+            String key = card.cardName().trim().toLowerCase();
+            int alreadyKept = kept.getOrDefault(key, 0);
+            int budget = Math.max(0, 3 - alreadyKept);
+            int wantedCopies = card.copies() == null ? 0 : card.copies();
+            int allowedHere = Math.min(wantedCopies, budget);
+
+            if (allowedHere > 0) {
+                result.add(new AiDeckCardResponse(card.cardName(), allowedHere));
+                kept.put(key, alreadyKept + allowedHere);
+            }
+        }
+
+        return result;
+    }
+
+    private AiDeckGenerationResponse padMainDeckIfUndersized(AiDeckGenerationResponse aiDeck) {
+        List<AiDeckCardResponse> mainDeck = aiDeck.mainDeck();
+
+        if (mainDeck == null || mainDeck.isEmpty()) {
+            return aiDeck;
+        }
+
+        int mainCount = countCards(mainDeck);
+
+        if (mainCount >= 40) {
+            return aiDeck;
+        }
+
+        Map<String, Integer> totalsAcrossSections = new HashMap<>();
+        addCopiesToMap(aiDeck.mainDeck(), totalsAcrossSections);
+        addCopiesToMap(aiDeck.extraDeck(), totalsAcrossSections);
+        addCopiesToMap(aiDeck.sideDeck(), totalsAcrossSections);
+
+        List<AiDeckCardResponse> padded = new ArrayList<>(mainDeck);
+        int safetyBound = padded.size() * 3;
+        int iterations = 0;
+
+        while (mainCount < 40 && iterations < safetyBound) {
+            int idx = iterations % padded.size();
+            AiDeckCardResponse card = padded.get(idx);
+
+            if (card != null && card.cardName() != null) {
+                String key = card.cardName().trim().toLowerCase();
+                int totalCurrent = totalsAcrossSections.getOrDefault(key, 0);
+
+                if (totalCurrent < 3) {
+                    int newCopies = (card.copies() == null ? 1 : card.copies()) + 1;
+                    padded.set(idx, new AiDeckCardResponse(card.cardName(), newCopies));
+                    totalsAcrossSections.put(key, totalCurrent + 1);
+                    mainCount++;
+                }
+            }
+
+            iterations++;
+        }
+
+        return new AiDeckGenerationResponse(
+                aiDeck.name(),
+                aiDeck.archetype(),
+                aiDeck.playStyle(),
+                aiDeck.format(),
+                mainCount,
+                aiDeck.extraDeckCount(),
+                aiDeck.sideDeckCount(),
+                aiDeck.winCondition(),
+                aiDeck.howToPilot(),
+                padded,
+                aiDeck.extraDeck(),
+                aiDeck.sideDeck(),
+                aiDeck.assistantMessage()
+        );
     }
 
     private void validateAiDeckStructure(AiDeckGenerationResponse aiDeck) {
