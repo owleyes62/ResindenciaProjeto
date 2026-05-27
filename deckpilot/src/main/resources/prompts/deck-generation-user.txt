@@ -1,0 +1,16 @@
+Pedido do usuário:
+"{userMessage}"
+
+Crie um deck de Yu-Gi-Oh! TCG seguindo rigidamente estas regras:
+
+- Main Deck com no mínimo 40 e no máximo 60 cartas.
+- Preferencialmente Main Deck com exatamente 40 cartas.
+- Extra Deck com no máximo 15 cartas.
+- Side Deck com no máximo 15 cartas.
+- Nenhuma carta pode ter mais de 3 cópias.
+- Use nomes oficiais em inglês das cartas.
+- Retorne somente JSON válido.
+- Não use markdown.
+- Não escreva nada fora do JSON.
+
+Se o pedido for incompleto, escolha uma lista inicial simples e consistente.

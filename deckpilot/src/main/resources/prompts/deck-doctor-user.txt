@@ -1,0 +1,25 @@
+Analise o seguinte deck de Yu-Gi-Oh!.
+
+Nome: {name}
+Arquétipo: {archetype}
+Estilo de jogo: {playStyle}
+Formato: {format}
+Condição de vitória: {winCondition}
+Como pilotar: {howToPilot}
+
+Main Deck:
+{mainCards}
+
+Extra Deck:
+{extraCards}
+
+Side Deck:
+{sideCards}
+
+Retorne a análise no seguinte formato:
+
+Resumo:
+Pontos fortes:
+Riscos:
+Sugestões:
+Comentário estratégico:
