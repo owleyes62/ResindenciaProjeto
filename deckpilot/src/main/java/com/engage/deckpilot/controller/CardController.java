@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -57,5 +58,11 @@ public class CardController {
             @RequestParam(defaultValue = "10") int limit
     ) {
         return cardService.searchCards(q, limit);
+    }
+
+    @Operation(summary = "Buscar cartas por IDs", description = "Retorna várias cartas em uma única chamada a partir de uma lista de IDs")
+    @GetMapping("/by-ids")
+    public List<CardResponse> getCardsByIds(@RequestParam List<Long> ids) {
+        return cardService.findByIds(ids);
     }
 }

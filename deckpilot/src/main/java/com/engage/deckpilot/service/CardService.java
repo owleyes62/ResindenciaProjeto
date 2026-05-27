@@ -8,6 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class CardService {
@@ -23,6 +26,15 @@ public class CardService {
         return cardRepository
                 .findByNameContainingIgnoreCase(query, PageRequest.of(0, limit))
                 .map(this::toResponse);
+    }
+
+    public List<CardResponse> findByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return cardRepository.findAllById(ids).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private CardResponse toResponse(Card card) {
