@@ -73,12 +73,27 @@ export function ChatContainer({ onDeckGenerated }: Readonly<ChatContainerProps>)
 
     try {
       const res = await sendChatMessage(session.id, content);
+      const generated = res.generatedDeck?.deck ?? null;
       setMessages((prev) => {
         const withoutOptimistic = prev.filter((m) => m.id !== optimisticUserMessage.id);
-        return [...withoutOptimistic, res.userMessage, res.assistantMessage];
+        const next: LocalChatMessage[] = [
+          ...withoutOptimistic,
+          res.userMessage,
+          res.assistantMessage,
+        ];
+        if (generated) {
+          next.push({
+            id: `deck-cta-${res.assistantMessage.id}-${generated.id}`,
+            role: "DECK_CTA",
+            content: "Quer ver os pontos fortes, riscos e sugestões deste deck?",
+            deckId: generated.id,
+            deckName: generated.name,
+          });
+        }
+        return next;
       });
-      if (res.generatedDeck?.deck) {
-        onDeckGenerated(res.generatedDeck.deck);
+      if (generated) {
+        onDeckGenerated(generated);
       }
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUserMessage.id));

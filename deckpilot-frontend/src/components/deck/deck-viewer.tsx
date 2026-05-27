@@ -1,6 +1,12 @@
-import type { DeckResponse } from "@/features/decks/decks-types";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { DeckCardResponse, DeckResponse } from "@/features/decks/decks-types";
+import type { CardResponse } from "@/features/cards/cards-types";
+import { getCardsByIds } from "@/features/cards/cards-api";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DeckSection } from "./deck-section";
+import { CardImageModal } from "./card-image-modal";
 
 interface DeckViewerProps {
   deck: DeckResponse | null;
@@ -8,15 +14,59 @@ interface DeckViewerProps {
   emptyDescription?: string;
 }
 
-function countCopies(items: DeckResponse["mainDeck"]): number {
+interface SelectedCard {
+  card: CardResponse;
+  copies: number;
+}
+
+function countCopies(items: DeckCardResponse[]): number {
   return items.reduce((sum, c) => sum + (c.copies ?? 0), 0);
+}
+
+function collectIds(deck: DeckResponse): number[] {
+  const ids = [
+    ...deck.mainDeck.map((c) => c.cardId),
+    ...deck.extraDeck.map((c) => c.cardId),
+    ...deck.sideDeck.map((c) => c.cardId),
+  ];
+  return Array.from(new Set(ids.filter((id) => Number.isFinite(id))));
 }
 
 export function DeckViewer({
   deck,
   emptyTitle = "Nenhum deck para mostrar",
   emptyDescription = "Quando a IA gerar um deck, ele aparecerá aqui.",
-}: DeckViewerProps) {
+}: Readonly<DeckViewerProps>) {
+  const [detailsById, setDetailsById] = useState<Map<number, CardResponse>>(
+    new Map(),
+  );
+  const [selected, setSelected] = useState<SelectedCard | null>(null);
+
+  const idsKey = useMemo(() => (deck ? collectIds(deck).join(",") : ""), [deck]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchDetails() {
+      const ids =
+        idsKey.length === 0
+          ? []
+          : idsKey.split(",").map(Number).filter((n) => Number.isFinite(n));
+      try {
+        const cards = ids.length === 0 ? [] : await getCardsByIds(ids);
+        if (cancelled) return;
+        const map = new Map<number, CardResponse>();
+        for (const c of cards) map.set(c.id, c);
+        setDetailsById(map);
+      } catch {
+        if (!cancelled) setDetailsById(new Map());
+      }
+    }
+    void fetchDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [idsKey]);
+
   if (!deck) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -24,6 +74,11 @@ export function DeckViewer({
   const mainCount = countCopies(deck.mainDeck);
   const extraCount = countCopies(deck.extraDeck);
   const sideCount = countCopies(deck.sideDeck);
+
+  function handleCardClick(deckCard: DeckCardResponse, details: CardResponse | null) {
+    if (!details) return;
+    setSelected({ card: details, copies: deckCard.copies });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,9 +132,30 @@ export function DeckViewer({
         </dl>
       </header>
 
-      <DeckSection title="Main Deck" cards={deck.mainDeck} />
-      <DeckSection title="Extra Deck" cards={deck.extraDeck} />
-      <DeckSection title="Side Deck" cards={deck.sideDeck} />
+      <DeckSection
+        title="Main Deck"
+        cards={deck.mainDeck}
+        detailsById={detailsById}
+        onCardClick={handleCardClick}
+      />
+      <DeckSection
+        title="Extra Deck"
+        cards={deck.extraDeck}
+        detailsById={detailsById}
+        onCardClick={handleCardClick}
+      />
+      <DeckSection
+        title="Side Deck"
+        cards={deck.sideDeck}
+        detailsById={detailsById}
+        onCardClick={handleCardClick}
+      />
+
+      <CardImageModal
+        card={selected?.card ?? null}
+        copies={selected?.copies}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }

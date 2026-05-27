@@ -1,12 +1,20 @@
+import type { CardResponse } from "@/features/cards/cards-types";
 import type { DeckCardResponse } from "@/features/decks/decks-types";
 import { DeckCardItem } from "./deck-card-item";
 
 interface DeckSectionProps {
   title: string;
   cards: DeckCardResponse[];
+  detailsById?: Map<number, CardResponse>;
+  onCardClick?: (card: DeckCardResponse, details: CardResponse | null) => void;
 }
 
-export function DeckSection({ title, cards }: DeckSectionProps) {
+export function DeckSection({
+  title,
+  cards,
+  detailsById,
+  onCardClick,
+}: Readonly<DeckSectionProps>) {
   const total = cards.reduce((sum, c) => sum + (c.copies ?? 0), 0);
 
   return (
@@ -21,9 +29,19 @@ export function DeckSection({ title, cards }: DeckSectionProps) {
         <p className="text-xs text-zinc-500">Nenhuma carta nesta seção.</p>
       ) : (
         <ul className="grid gap-2">
-          {cards.map((c) => (
-            <DeckCardItem key={`${c.cardId}-${c.cardName}`} card={c} />
-          ))}
+          {cards.map((c) => {
+            const details = detailsById?.get(c.cardId) ?? null;
+            return (
+              <DeckCardItem
+                key={`${c.cardId}-${c.cardName}`}
+                card={c}
+                details={details}
+                onClick={
+                  onCardClick ? () => onCardClick(c, details) : undefined
+                }
+              />
+            );
+          })}
         </ul>
       )}
     </section>

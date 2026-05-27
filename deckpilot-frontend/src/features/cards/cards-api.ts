@@ -19,3 +19,12 @@ export async function searchCards(q: string, limit = 10): Promise<CardResponse[]
   });
   return res.data;
 }
+
+export async function getCardsByIds(ids: number[]): Promise<CardResponse[]> {
+  const uniqueIds = Array.from(new Set(ids)).filter((id) => Number.isFinite(id));
+  if (uniqueIds.length === 0) return [];
+  const res = await apiClient.get<CardResponse[]>("/cards/by-ids", {
+    params: { ids: uniqueIds.join(",") },
+  });
+  return res.data;
+}
