@@ -31,6 +31,7 @@ public class ChatService {
     private final ChatGeneratedDeckRepository chatGeneratedDeckRepository;
     private final DeckService deckService;
     private final MockDeckGenerationService mockDeckGenerationService;
+    private final AiDeckGenerationService aiDeckGenerationService;
 
     @Transactional
     public ChatSessionResponse createSession(ChatSessionCreateRequest request) {
@@ -83,34 +84,44 @@ public class ChatService {
         boolean shouldGenerateDeck = request.content() != null
                 && request.content().toLowerCase().contains("deck");
 
-        String assistantContent = shouldGenerateDeck
-                ? "Gerei um deck mockado para testar o fluxo. A integração com IA será adicionada em uma próxima etapa."
-                : "Mensagem recebida. A integração com IA será adicionada em uma próxima etapa.";
+        if (!shouldGenerateDeck) {
+            ChatMessage assistantMessage = ChatMessage.builder()
+                    .session(session)
+                    .role(ChatMessageRole.ASSISTANT)
+                    .content("Mensagem recebida. Me diga qual tipo de deck você quer criar.")
+                    .build();
+
+            ChatMessage savedAssistantMessage = chatMessageRepository.save(assistantMessage);
+
+            return new ChatSendMessageResponse(
+                    toMessageResponse(savedUserMessage),
+                    toMessageResponse(savedAssistantMessage),
+                    null
+            );
+        }
 
         ChatMessage assistantMessage = ChatMessage.builder()
                 .session(session)
                 .role(ChatMessageRole.ASSISTANT)
-                .content(assistantContent)
+                .content("Gerando deck com IA...")
                 .build();
 
         ChatMessage savedAssistantMessage = chatMessageRepository.save(assistantMessage);
 
-        ChatGeneratedDeckResponse generatedDeckResponse = null;
+        AiDeckGenerationService.GeneratedDeckResult result =
+                aiDeckGenerationService.generateDeckFromMessage(
+                        session,
+                        savedUserMessage,
+                        savedAssistantMessage
+                );
 
-        if (shouldGenerateDeck) {
-            ChatGeneratedDeck generatedDeck = mockDeckGenerationService.generateMockDeck(
-                    session,
-                    savedUserMessage,
-                    savedAssistantMessage
-            );
-
-            generatedDeckResponse = toGeneratedDeckResponse(generatedDeck);
-        }
+        savedAssistantMessage.setContent(result.assistantMessage());
+        ChatMessage updatedAssistantMessage = chatMessageRepository.save(savedAssistantMessage);
 
         return new ChatSendMessageResponse(
                 toMessageResponse(savedUserMessage),
-                toMessageResponse(savedAssistantMessage),
-                generatedDeckResponse
+                toMessageResponse(updatedAssistantMessage),
+                toGeneratedDeckResponse(result.generatedDeck())
         );
     }
 

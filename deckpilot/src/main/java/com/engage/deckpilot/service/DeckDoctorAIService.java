@@ -6,6 +6,8 @@ import com.engage.deckpilot.domain.deck.DeckSection;
 import com.engage.deckpilot.dto.doctor.DeckDoctorAIResponse;
 import com.engage.deckpilot.repository.DeckDiagnosisRepository;
 import com.engage.deckpilot.repository.DeckRepository;
+import com.engage.deckpilot.service.ai.DeckDoctorPromptBuilder;
+import com.engage.deckpilot.service.ai.GroqLlmClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,6 +25,8 @@ public class DeckDoctorAIService {
     private final DeckRepository deckRepository;
     private final DeckDiagnosisRepository deckDiagnosisRepository;
     private final ObjectMapper objectMapper;
+    private final GroqLlmClient groqLlmClient;
+    private final DeckDoctorPromptBuilder deckDoctorPromptBuilder;
 
     @Transactional
     public DeckDoctorAIResponse analyzeDeckWithAI(Long deckId) {
@@ -62,7 +66,10 @@ public class DeckDoctorAIService {
                 + extraCount + " no Extra Deck e "
                 + sideCount + " no Side Deck.";
 
-        String aiCommentary = buildMockAICommentary(deck, mainCount, extraCount, sideCount);
+        String aiCommentary = groqLlmClient.chatForDoctor(
+                deckDoctorPromptBuilder.systemPrompt(),
+                deckDoctorPromptBuilder.userPrompt(deck)
+        );
 
         DeckDiagnosis diagnosis = DeckDiagnosis.builder()
                 .deck(deck)
@@ -100,34 +107,6 @@ public class DeckDoctorAIService {
                 .filter(deckCard -> deckCard.getSection() == section)
                 .mapToInt(deckCard -> deckCard.getCopies() == null ? 0 : deckCard.getCopies())
                 .sum();
-    }
-
-    private String buildMockAICommentary(
-            Deck deck,
-            int mainCount,
-            int extraCount,
-            int sideCount
-    ) {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Comentário estratégico simulado: ");
-        builder.append("o deck parece estar em uma estrutura inicial válida. ");
-
-        if (mainCount == 40) {
-            builder.append("A contagem de 40 cartas favorece consistência. ");
-        }
-
-        if (extraCount == 0) {
-            builder.append("O Extra Deck vazio pode ser aceitável em alguns decks, mas deve ser revisado. ");
-        }
-
-        if (sideCount == 0) {
-            builder.append("O Side Deck ainda precisa ser desenvolvido para partidas competitivas. ");
-        }
-
-        builder.append("Quando integrarmos a IA real, este texto será substituído por uma análise estratégica baseada nas cartas do deck.");
-
-        return builder.toString();
     }
 
     private String toJson(Object value) {
