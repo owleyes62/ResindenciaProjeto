@@ -1,0 +1,12 @@
+target/
+.idea/
+.vscode/
+.git/
+.gitignore
+.mvn/wrapper/maven-wrapper.jar
+data/
+docs/
+HELP.md
+*.iml
+*.log
+src/main/resources/application-local.yaml

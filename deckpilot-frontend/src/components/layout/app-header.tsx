@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { API_BASE_URL } from "@/features/api/api-client";
 
 const NAV_LINKS = [
   { href: "/", label: "Início" },
@@ -7,6 +8,8 @@ const NAV_LINKS = [
 ];
 
 export function AppHeader() {
+  const swaggerUrl = `${API_BASE_URL.replace(/\/$/, "")}/swagger-ui.html`;
+
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-900 bg-black/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -29,7 +32,7 @@ export function AppHeader() {
             </Link>
           ))}
           <a
-            href="http://localhost:8080/swagger-ui.html"
+            href={swaggerUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="ml-1 rounded-md border border-zinc-800 px-3 py-1.5 text-zinc-300 transition hover:border-indigo-500/60 hover:text-white"
