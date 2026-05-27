@@ -3,61 +3,40 @@ package com.engage.deckpilot.service.ai;
 import com.engage.deckpilot.domain.deck.Deck;
 import com.engage.deckpilot.domain.deck.DeckCard;
 import com.engage.deckpilot.domain.deck.DeckSection;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Component
+@RequiredArgsConstructor
 public class DeckDoctorPromptBuilder {
 
-    public String systemPrompt() {
-        return """
-                Você é o Deck Doctor do DeckPilot, um avaliador estratégico de decks de Yu-Gi-Oh!.
-                Analise decks de forma objetiva, prática e útil para jogadores iniciantes e intermediários.
+    private static final String SYSTEM_PROMPT_PATH = "prompts/deck-doctor-system.txt";
+    private static final String USER_PROMPT_PATH = "prompts/deck-doctor-user.txt";
 
-                Responda sempre em português do Brasil.
-                Não invente cartas que não estejam no deck.
-                Não altere regras oficiais sem avisar.
-                Foque em consistência, plano de jogo, riscos, pontos fortes e sugestões práticas.
-                """;
+    private final PromptLoader promptLoader;
+
+    public String systemPrompt() {
+        return promptLoader.load(SYSTEM_PROMPT_PATH);
     }
 
     public String userPrompt(Deck deck) {
-        return """
-                Analise o seguinte deck de Yu-Gi-Oh!.
+        return promptLoader.render(USER_PROMPT_PATH, Map.of(
+                "name", nullSafe(deck.getName()),
+                "archetype", nullSafe(deck.getArchetype()),
+                "playStyle", nullSafe(deck.getPlayStyle()),
+                "format", nullSafe(deck.getFormat()),
+                "winCondition", nullSafe(deck.getWinCondition()),
+                "howToPilot", nullSafe(deck.getHowToPilot()),
+                "mainCards", formatCards(deck, DeckSection.MAIN),
+                "extraCards", formatCards(deck, DeckSection.EXTRA),
+                "sideCards", formatCards(deck, DeckSection.SIDE)
+        ));
+    }
 
-                Nome: %s
-                Arquétipo: %s
-                Estilo de jogo: %s
-                Formato: %s
-                Condição de vitória: %s
-                Como pilotar: %s
-
-                Main Deck:
-                %s
-
-                Extra Deck:
-                %s
-
-                Side Deck:
-                %s
-
-                Retorne a análise no seguinte formato:
-
-                Resumo:
-                Pontos fortes:
-                Riscos:
-                Sugestões:
-                Comentário estratégico:
-                """.formatted(
-                deck.getName(),
-                deck.getArchetype(),
-                deck.getPlayStyle(),
-                deck.getFormat(),
-                deck.getWinCondition(),
-                deck.getHowToPilot(),
-                formatCards(deck, DeckSection.MAIN),
-                formatCards(deck, DeckSection.EXTRA),
-                formatCards(deck, DeckSection.SIDE)
-        );
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 
     private String formatCards(Deck deck, DeckSection section) {

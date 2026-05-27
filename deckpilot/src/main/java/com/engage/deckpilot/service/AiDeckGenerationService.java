@@ -9,19 +9,21 @@ import com.engage.deckpilot.domain.deck.DeckCard;
 import com.engage.deckpilot.domain.deck.DeckSection;
 import com.engage.deckpilot.dto.ai.AiDeckCardResponse;
 import com.engage.deckpilot.dto.ai.AiDeckGenerationResponse;
-import com.engage.deckpilot.repository.CardRepository;
 import com.engage.deckpilot.repository.ChatGeneratedDeckRepository;
 import com.engage.deckpilot.repository.DeckRepository;
 import com.engage.deckpilot.service.ai.DeckGenerationPromptBuilder;
 import com.engage.deckpilot.service.ai.GroqLlmClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +33,7 @@ public class AiDeckGenerationService {
     private final DeckGenerationPromptBuilder deckGenerationPromptBuilder;
     private final ObjectMapper objectMapper;
 
-    private final CardRepository cardRepository;
+    private final CardNameResolver cardNameResolver;
     private final DeckRepository deckRepository;
     private final ChatGeneratedDeckRepository chatGeneratedDeckRepository;
 
@@ -47,6 +49,8 @@ public class AiDeckGenerationService {
         );
 
         AiDeckGenerationResponse aiDeck = parseAiResponse(rawJson);
+
+        validateAiDeckStructure(aiDeck);
 
         Deck deck = Deck.builder()
                 .name(aiDeck.name())
@@ -83,6 +87,112 @@ public class AiDeckGenerationService {
         }
 
         return new GeneratedDeckResult(savedGeneratedDeck, assistantContent);
+    }
+
+    private void validateAiDeckStructure(AiDeckGenerationResponse aiDeck) {
+        int mainDeckCount = countCards(aiDeck.mainDeck());
+        int extraDeckCount = countCards(aiDeck.extraDeck());
+        int sideDeckCount = countCards(aiDeck.sideDeck());
+
+        List<String> errors = new ArrayList<>();
+
+        if (mainDeckCount < 40) {
+            errors.add("Main Deck must have at least 40 cards. Current: " + mainDeckCount);
+        }
+
+        if (mainDeckCount > 60) {
+            errors.add("Main Deck must have at most 60 cards. Current: " + mainDeckCount);
+        }
+
+        if (extraDeckCount > 15) {
+            errors.add("Extra Deck must have at most 15 cards. Current: " + extraDeckCount);
+        }
+
+        if (sideDeckCount > 15) {
+            errors.add("Side Deck must have at most 15 cards. Current: " + sideDeckCount);
+        }
+
+        validateMaxCopies(aiDeck.mainDeck(), "MAIN", errors);
+        validateMaxCopies(aiDeck.extraDeck(), "EXTRA", errors);
+        validateMaxCopies(aiDeck.sideDeck(), "SIDE", errors);
+        validateTotalCopiesAcrossSections(aiDeck, errors);
+
+        if (!errors.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "AI generated an invalid deck structure: " + String.join("; ", errors)
+            );
+        }
+    }
+
+    private int countCards(List<AiDeckCardResponse> cards) {
+        if (cards == null || cards.isEmpty()) {
+            return 0;
+        }
+
+        return cards.stream()
+                .filter(Objects::nonNull)
+                .mapToInt(card -> card.copies() == null ? 0 : card.copies())
+                .sum();
+    }
+
+    private void validateMaxCopies(
+            List<AiDeckCardResponse> cards,
+            String section,
+            List<String> errors
+    ) {
+        if (cards == null || cards.isEmpty()) {
+            return;
+        }
+
+        for (AiDeckCardResponse card : cards) {
+            if (card == null) {
+                continue;
+            }
+
+            if (card.copies() == null || card.copies() < 1) {
+                errors.add("Card '" + card.cardName() + "' in " + section + " must have at least 1 copy.");
+            }
+
+            if (card.copies() != null && card.copies() > 3) {
+                errors.add("Card '" + card.cardName() + "' in " + section + " has more than 3 copies.");
+            }
+        }
+    }
+
+    private void validateTotalCopiesAcrossSections(
+            AiDeckGenerationResponse aiDeck,
+            List<String> errors
+    ) {
+        Map<String, Integer> copiesByCard = new HashMap<>();
+
+        addCopiesToMap(aiDeck.mainDeck(), copiesByCard);
+        addCopiesToMap(aiDeck.extraDeck(), copiesByCard);
+        addCopiesToMap(aiDeck.sideDeck(), copiesByCard);
+
+        for (Map.Entry<String, Integer> entry : copiesByCard.entrySet()) {
+            if (entry.getValue() > 3) {
+                errors.add("Card '" + entry.getKey() + "' has more than 3 copies across Main, Extra and Side. Current: " + entry.getValue());
+            }
+        }
+    }
+
+    private void addCopiesToMap(
+            List<AiDeckCardResponse> cards,
+            Map<String, Integer> copiesByCard
+    ) {
+        if (cards == null || cards.isEmpty()) {
+            return;
+        }
+
+        for (AiDeckCardResponse card : cards) {
+            if (card == null || card.cardName() == null || card.copies() == null) {
+                continue;
+            }
+
+            String normalizedName = card.cardName().trim().toLowerCase();
+
+            copiesByCard.merge(normalizedName, card.copies(), Integer::sum);
+        }
     }
 
     private AiDeckGenerationResponse parseAiResponse(String rawJson) {
@@ -130,10 +240,7 @@ public class AiDeckGenerationService {
                 continue;
             }
 
-            Card card = cardRepository.findByNameIgnoreCase(aiCard.cardName())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "AI generated a card that was not found in database: " + aiCard.cardName()
-                    ));
+            Card card = cardNameResolver.resolve(aiCard.cardName());
 
             DeckCard deckCard = DeckCard.builder()
                     .deck(deck)
