@@ -25,6 +25,9 @@ public class OpenApiConfig {
                 )
                 .servers(List.of(
                         new Server()
+                                .url("https://resindenciaprojetodeckpilot.onrender.com")
+                                .description("Render (produção)"),
+                        new Server()
                                 .url("http://localhost:8080")
                                 .description("Ambiente local")
                 ));
