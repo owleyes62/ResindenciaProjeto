@@ -89,29 +89,34 @@ public class AiDeckGenerationService {
         String baseUserPrompt = deckGenerationPromptBuilder.userPrompt(userContent);
 
         String currentUserPrompt = baseUserPrompt;
-        IllegalArgumentException lastError = null;
+        RuntimeException lastError = null;
 
         for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
-            String rawJson = groqLlmClient.chatForDeckGeneration(systemPrompt, currentUserPrompt);
-            AiDeckGenerationResponse aiDeck = parseAiResponse(rawJson);
-            aiDeck = capCrossSectionCopies(aiDeck);
-            aiDeck = padMainDeckIfUndersized(aiDeck);
-
             try {
+                String rawJson = groqLlmClient.chatForDeckGeneration(systemPrompt, currentUserPrompt);
+                AiDeckGenerationResponse aiDeck = parseAiResponse(rawJson);
+                aiDeck = capCrossSectionCopies(aiDeck);
+                aiDeck = padMainDeckIfUndersized(aiDeck);
+
                 validateAiDeckStructure(aiDeck);
                 return aiDeck;
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 lastError = e;
                 currentUserPrompt = baseUserPrompt
                         + "\n\nSua tentativa anterior falhou com este erro:\n"
-                        + e.getMessage()
-                        + "\n\nCorrija o problema e devolva um JSON válido respeitando todas as regras de tamanho e cópias.";
+                        + shortErrorMessage(e)
+                        + "\n\nCorrija o problema e devolva um JSON válido, completo e fechado, respeitando todas as regras de tamanho e cópias. NÃO repita cartas como itens separados — se precisar de mais cópias, aumente o campo 'copies'.";
             }
         }
 
         throw lastError != null
                 ? lastError
                 : new IllegalStateException("AI deck generation failed without a specific error.");
+    }
+
+    private String shortErrorMessage(Exception e) {
+        String message = e.getMessage() == null ? "" : e.getMessage();
+        return message.length() > 500 ? message.substring(0, 500) + "..." : message;
     }
 
     private AiDeckGenerationResponse capCrossSectionCopies(AiDeckGenerationResponse aiDeck) {

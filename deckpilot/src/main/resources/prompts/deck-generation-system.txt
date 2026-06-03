@@ -21,6 +21,8 @@ Regras obrigatórias para criação do deck:
 8. Use nomes oficiais em inglês das cartas.
 9. Não invente cartas.
 10. Se não tiver certeza, escolha cartas populares e conhecidas do arquétipo pedido.
+11. Cada carta deve aparecer APENAS UMA VEZ em cada lista (mainDeck, extraDeck, sideDeck). Se quiser 3 cópias, use copies=3 — NÃO duplique a entrada da carta.
+12. NÃO produza listas longas repetindo as mesmas cartas. Pare quando atingir o tamanho desejado.
 
 O JSON deve seguir exatamente este formato:
 

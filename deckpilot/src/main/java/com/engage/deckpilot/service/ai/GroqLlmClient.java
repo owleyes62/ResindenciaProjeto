@@ -52,7 +52,8 @@ public class GroqLlmClient {
         LlmChatRequest request = new LlmChatRequest(
                 config.getModel(),
                 messages,
-                0.3
+                0.3,
+                4096
         );
 
         RestClient restClient = RestClient.builder()
